@@ -8,6 +8,8 @@ using Windows.UI.Popups;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using OpenTok;
+using Windows.Media.Capture;
+using Windows.Devices.Enumeration;
 
 // The Blank Page item template is documented at https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
@@ -18,12 +20,9 @@ namespace BasicVideoChatUWP
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        private static string API_KEY = "47446341";
-        private static string SESSION_ID = "2_MX40NzQ0NjM0MX5-MTY3MzI1MzQ1NzkxMX41RWg0RVNoWXU0S3ZIOWVJV0NxVnBWcHN-fn4";
-        private static string TOKEN = "T1==cGFydG5lcl9pZD00NzQ0NjM0MSZzaWc9MzJmMjdhMGRmNDk2MjliZWJlM2FmNDU5YTcwNzQyNzc0ZGVkNDI5MjpzZXNzaW9uX2lkPTJfTVg0ME56UTBOak0wTVg1LU1UWTNNekkxTXpRMU56a3hNWDQxUldnMFJWTm9XWFUwUzNaSU9XVkpWME54Vm5CV2NITi1mbjQmY3JlYXRlX3RpbWU9MTY3MzI1MzQ5NSZub25jZT0wLjU3NTg1NzIyMzAxMTgwODImcm9sZT1wdWJsaXNoZXImZXhwaXJlX3RpbWU9MTY3NTg0NTQ5NCZpbml0aWFsX2xheW91dF9jbGFzc19saXN0PQ==";
-
-        private const VideoCapturer.Resolution DEFAULT_RESOLUTION = VideoCapturer.Resolution.High;
-        private const VideoCapturer.FrameRate DEFAULT_FRAME_RATE = VideoCapturer.FrameRate.Fps30;
+        private static string API_KEY = "45995012";
+        private static string SESSION_ID = "1_MX40NTk5NTAxMn5-MTY3NjUzNjIxMDEyNX5Ma0ZZZktyTzFLZVlyWVMxaXI1c2pNQTJ-fn4";
+        private static string TOKEN = "T1==cGFydG5lcl9pZD00NTk5NTAxMiZzaWc9YjcwMjYwOTViYjE3NTk5MTQ0ZTA1OTA4NTg5NmNjZTA1NjU1ODIyODpub25jZT01MDA2MjkmY29ubmVjdGlvbl9kYXRhPSU3QiUyMnBhcnRpY2lwYW50X2lkJTIyJTNBJTIyNTYyMzglM0E0ZTczOThjYy04MjgyLTQ0MGYtYTgzNS05NTdjMTNiMmY1MzMlMjIlN0QmY3JlYXRlX3RpbWU9MTY3NjUzNjIxMSZyb2xlPXB1Ymxpc2hlciZleHBpcmVfdGltZT0xNjc2NjIyNjExJnNlc3Npb25faWQ9MV9NWDQwTlRrNU5UQXhNbjUtTVRZM05qVXpOakl4TURFeU5YNU1hMFpaWmt0eVR6RkxaVmx5V1ZNeGFYSTFjMnBOUVRKLWZuNA==";
 
         private readonly ConcurrentDictionary<Stream, Subscriber> subscriberByStream = new ConcurrentDictionary<Stream, Subscriber>();
         private readonly Context context;
@@ -82,7 +81,7 @@ namespace BasicVideoChatUWP
             requestPermissionDialog.DefaultCommandIndex = 0;
             _ = await requestPermissionDialog.ShowAsync();
 
-            ConfigureAudioDevice();
+            //ConfigureAudioDevice();
             RebuildPublisher();
         }
 
@@ -125,6 +124,7 @@ namespace BasicVideoChatUWP
                 //Renderer = renderer
                 Renderer = subscriberVideo
             }.Build();
+            subscriber.SubscribeToAudio = false;
             _ = subscriberByStream.TryAdd(e.Stream, subscriber);
 
             try
@@ -193,7 +193,7 @@ namespace BasicVideoChatUWP
             ConnectButton.Content = isConnected ? "Disconnect" : "Connect";
         }
 
-        private void RebuildPublisher()
+        private async void RebuildPublisher()
         {
             if (publisher != null)
             {
@@ -202,19 +202,24 @@ namespace BasicVideoChatUWP
 
             try
             {
-                IList<VideoCapturer.VideoDevice> availableCameras = VideoCapturer.EnumerateDevices();
-                if (availableCameras == null || availableCameras.Count == 0)
-                {
-                    throw new Exception("No cameras detected");
-                }
+                //IReadOnlyList<UWPVideoCapturer.Device> availableCameras = await UWPVideoCapturer.EnumerateDevicesAsync();
+                //if (availableCameras == null || availableCameras.Count == 0)
+                //{
+                //    throw new Exception("No cameras detected");
+                //}
 
-                VideoCapturer.VideoDevice currentCamera = availableCameras[0];
-                VideoCapturer capturer = currentCamera.CreateVideoCapturer(DEFAULT_RESOLUTION, DEFAULT_FRAME_RATE);
+                //UWPVideoCapturer.Device currentCamera = availableCameras[0];
+
+                var devices = await DeviceInformation.FindAllAsync(DeviceClass.VideoCapture);
+                IReadOnlyList<MediaCaptureVideoProfile> profiles = MediaCapture.FindAllVideoProfiles(devices[0].Id);
+
+                UWPVideoCapturer capturer = await UWPVideoCapturer.CreateAsync(devices[0].Id, "", 1280, 720, 30);
                 publisher = new Publisher.Builder(context)
                 {
                     Renderer = publisherVideo,
                     Capturer = capturer
                 }.Build();
+                publisher.PublishAudio = false;
             }
             catch (OpenTokException ex)
             {
